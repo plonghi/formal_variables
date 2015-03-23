@@ -67,6 +67,9 @@ class MyRing(object):
                     ### it would be good to expand the inverse of it, and then
                     ### use its de-laurentification. For now I will use this 
                     ### awkward alternative instead. To Fix!
+                    print "\n***********\
+                    \nYou haven't implemented this feature yet!\
+                    \n***********\n"
                     pass
 
         else:
@@ -142,7 +145,10 @@ class XVarRing(MyRing):
         # print "these are the monomials: %s" % monomials
         # Now I want to collect monomials with the same formal variable
         # and add together their coefficients
-        self.element = resum(map(de_laurentify_m, monomials))
+        ### OLD ###
+        # self.element = resum(map(de_laurentify_m, monomials))
+        ### NEW ###
+        self.element = de_laurentify_p(sum(monomials))
 
     def represent(self):
         #### OLD
@@ -193,60 +199,60 @@ class XVarRing(MyRing):
 
 
 
-def resum(l):
-    """
-    this is a function that takes
-    [... [c, X] , [d, Y] , [e, X] ...]
-    and 'resums it' into
-    [... [c + e, X] , [d, Y] ...]
-    it will also drop those terms such as 
-    [... [0, X] ...]
-    """
-    ### OLD
-    # var_form = [i[0] * i[1].laurent_form() for i in l]
-    # tot = sym.collect(sum(var_form), [x,y])
-    # term_list = tot.args
-    # print "\nthis is the resum function"
-    # print term_list
-    # return map(de_laurentify, term_list)
+# def resum(l):
+#     """
+#     this is a function that takes
+#     [... [c, X] , [d, Y] , [e, X] ...]
+#     and 'resums it' into
+#     [... [c + e, X] , [d, Y] ...]
+#     it will also drop those terms such as 
+#     [... [0, X] ...]
+#     """
+#     ### OLD
+#     # var_form = [i[0] * i[1].laurent_form() for i in l]
+#     # tot = sym.collect(sum(var_form), [x,y])
+#     # term_list = tot.args
+#     # print "\nthis is the resum function"
+#     # print term_list
+#     # return map(de_laurentify, term_list)
 
-    ### NEW 
-    # print "I want to resum this list: %s " % [[i[0], i[1].charge] for i in l]
-    # print "resumming %s " % l
-    tot = []
-    for i in l:
-        if len(i) == 0:
-            pass
-        else:
-            coeff = i[0]
-            var = i[1]
-            found = False
-            for k in range(len(tot)):
-                # print "k = %s " % k
-                if var.charge == tot[k][1].charge:
-                    # print "these are equal: %s = %s " % (var.charge , \
-                    # tot[k][1].charge)
-                    found = True
-                    position = k
-            if found == True:
-                # print "will add %s to %s" % ( [coeff, var.charge], 
-                # [tot[k][0], tot[k][1].charge] )
-                tot[position][0] += coeff
-            elif found == False:
-                tot.append(i)
-            # print "now tot is %s "% [ [s[0], s[1].charge] for s in tot]
-    ### Now will go through 'tot' and check if any cancellations occured, 
-    ### then will drop terms such as [...[0, X]...]
-    new_tot = []
-    for j in tot:
-        if j[0] == 0:
-            pass
-        else:
-            new_tot.append(j)
-    if len(new_tot) == 0:
-        new_tot = [[]]
-    # print "and returning %s " % tot
-    return new_tot
+#     ### NEW 
+#     # print "I want to resum this list: %s " % [[i[0], i[1].charge] for i in l]
+#     # print "resumming %s " % l
+#     tot = []
+#     for i in l:
+#         if len(i) == 0:
+#             pass
+#         else:
+#             coeff = i[0]
+#             var = i[1]
+#             found = False
+#             for k in range(len(tot)):
+#                 # print "k = %s " % k
+#                 if var.charge == tot[k][1].charge:
+#                     # print "these are equal: %s = %s " % (var.charge , \
+#                     # tot[k][1].charge)
+#                     found = True
+#                     position = k
+#             if found == True:
+#                 # print "will add %s to %s" % ( [coeff, var.charge], 
+#                 # [tot[k][0], tot[k][1].charge] )
+#                 tot[position][0] += coeff
+#             elif found == False:
+#                 tot.append(i)
+#             # print "now tot is %s "% [ [s[0], s[1].charge] for s in tot]
+#     ### Now will go through 'tot' and check if any cancellations occured, 
+#     ### then will drop terms such as [...[0, X]...]
+#     new_tot = []
+#     for j in tot:
+#         if j[0] == 0:
+#             pass
+#         else:
+#             new_tot.append(j)
+#     if len(new_tot) == 0:
+#         new_tot = [[]]
+#     # print "and returning %s " % tot
+#     return new_tot
 
 
 def twisted_product(l):
@@ -277,27 +283,27 @@ def twisted_product(l):
         return p
 
 
-def de_laurentify_m(m):
-    """
-    Takes an ABELIAN MONOMIAL in x,y variablea and translates it into an entry 
-    for an element of the Polynomial ring. For example
-        2 * q * x**a * y**b   =>   [2 * q, FormalVariable([a, b])]
-    """
-    # print "taking monomial %s "% m
-    if m == 0:
-        return [0, 0]
-    else:
-        d_x = sym.degree(m, x)
-        d_y = sym.degree(m, y)
-        c = m / x ** d_x / y ** d_y
-        # print type(m)
-        # print type(sym.poly(m, x, y))
-        # return (sym.poly(m, x, y)).subs(x,FormalVariable([1,0])).subs(\
-        #    y,FormalVariable([0,1]))
-        # return sym.poly(x).subs(x,FormalVariable([1,0])).subs(\
-        #    y,FormalVariable([0,1]))
-        # print "and returning %s "% [c, FormalVariable([d_x, d_y]).__str__()]
-        return [c, FormalVariable([d_x, d_y])]
+# def de_laurentify_m(m):
+#     """
+#     Takes an ABELIAN MONOMIAL in x,y variablea and translates it into an entry 
+#     for an element of the Polynomial ring. For example
+#         2 * q * x**a * y**b   =>   [2 * q, FormalVariable([a, b])]
+#     """
+#     # print "taking monomial %s "% m
+#     if m == 0:
+#         return [0, 0]
+#     else:
+#         d_x = sym.degree(m, x)
+#         d_y = sym.degree(m, y)
+#         c = m / x ** d_x / y ** d_y
+#         # print type(m)
+#         # print type(sym.poly(m, x, y))
+#         # return (sym.poly(m, x, y)).subs(x,FormalVariable([1,0])).subs(\
+#         #    y,FormalVariable([0,1]))
+#         # return sym.poly(x).subs(x,FormalVariable([1,0])).subs(\
+#         #    y,FormalVariable([0,1]))
+#         # print "and returning %s "% [c, FormalVariable([d_x, d_y]).__str__()]
+#         return [c, FormalVariable([d_x, d_y])]
 
 def de_laurentify_p(p1):
     """
@@ -310,7 +316,7 @@ def de_laurentify_p(p1):
     p = poly(p1, x, y)
     # print "type of %s is: %s" % (p1, type(p1))
     if p == 0:
-        return [[0, 0]]
+        return [[]]
     else:
         ans = []
         coeffs = p.coeffs() ## the ordering is the same as in monoms()
@@ -415,30 +421,37 @@ print XVarRing(de_laurentify_p(f1))
 
 print "\n\nSome special cases:"
 
-print "\nDefining e8 = XVarRing([[1], [-1]]) the sum of additive inverses"
+print "\nDefining \
+\ne8 = XVarRing([[1], [-1]])\
+\nthe sum of additive inverses"
 e8 = XVarRing([[1], [-1]])
 print "after automatic simplification, it has 'elements' %s " % e8.element
 print "e8 = %s" % e8
 print "the laurent-abelianized-then de_laurentified expression: %s " % \
 XVarRing(de_laurentify_p(e8.laurentify_p()))
 
-print "\nDefining e9 = XVarRing([[0]]) the additive identity"
+print "\nDefining\
+\ne9 = XVarRing([[0]])\
+\nthe additive identity"
 e9 = XVarRing([[0]])
 print "after automatic simplification, it has 'elements' %s " % e9.element
 print "e9 = %s" % e9
 print "the laurent-abelianized-then de_laurentified expression: %s " % \
 XVarRing(de_laurentify_p(e9.laurentify_p()))
 
-print "\nDefining e10 = XVarRing([[1]]) tha multiplicative identity"
+print "\nDefining\
+\ne10 = XVarRing([[1]])\
+\ntha multiplicative identity"
 e10 = XVarRing([[1]])
 print "after automatic simplification, it has 'elements' %s " % e10.element
 print "e10 = %s" % e10
 print "the laurent-abelianized-then de_laurentified expression: %s " % \
 XVarRing(de_laurentify_p(e10.laurentify_p()))
 
-print "\nDefining e11 = XVarRing([[FormalVariable([1, 2]), \
-FormalVariable([-1, -2])]]) \
-the product of multiplicative inverses"
+print "\nDefining \
+\ne11 = XVarRing([[FormalVariable([1, 2]), \
+FormalVariable([-1, -2])]])\
+\nthe product of multiplicative inverses"
 e11 = XVarRing([[FormalVariable([1, 2]), FormalVariable([-1, -2])]])
 print "after automatic simplification, it has 'elements' %s " % e11.element
 print "e11 = %s" % e11
