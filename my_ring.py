@@ -1,7 +1,7 @@
 # import numpy as np
 import sympy as sym
 from sympy import poly, series # Using sympy v 0.7.6!
-from sympy.abc import x, y, q, t
+from sympy.abc import q, x, y, t
 
 def dsz(charge_1, charge_2):
     return (charge_1[0] * charge_2[1] - charge_2[0] * charge_1[1])
@@ -159,16 +159,19 @@ class XVarRing(MyRing):
         return ans
 
     def laurentify_p(self):
-        laurent_poly = 0
-        for e in self.element:
-            summand = 1
-            for f in e:
-                if type(f) is not FormalVariable:
-                    summand *= f
-                else:
-                    summand *= (x ** f.charge[0]) * (y ** f.charge[1])
-            laurent_poly += summand
-        return laurent_poly
+        if self.element == [[]]:
+            return 0
+        else:
+            laurent_poly = 0
+            for e in self.element:
+                summand = 1
+                for f in e:
+                    if type(f) is not FormalVariable:
+                        summand *= f
+                    else:
+                        summand *= (x ** f.charge[0]) * (y ** f.charge[1])
+                laurent_poly += summand
+            return laurent_poly
 
     def t_expand(self, degree):
         laurent_poly = 0
@@ -296,6 +299,38 @@ def de_laurentify_m(m):
         # print "and returning %s "% [c, FormalVariable([d_x, d_y]).__str__()]
         return [c, FormalVariable([d_x, d_y])]
 
+def de_laurentify_p(p1):
+    """
+    Takes an ABELIAN POLYNOMIAL in x,y variablea and translates it into an 
+    entry  for an element of the Polynomial ring. For example
+        2 * q * x**a + 3 * y**b   
+            =>   [[2 * q, FormalVariable([a, 0])], [3, FormalVariable([0, b])]]
+    """
+    # print "taking monomial %s "% m
+    p = poly(p1, x, y)
+    # print "type of %s is: %s" % (p1, type(p1))
+    if p == 0:
+        return [[0, 0]]
+    else:
+        ans = []
+        coeffs = p.coeffs() ## the ordering is the same as in monoms()
+        # print "coeffs: %s" % coeffs
+        degrees = p.monoms() ## the ordering is lexicographic
+        # print "monoms: %s" % degrees
+        # d_x = sym.degree(m, x)
+        # d_y = sym.degree(m, y)
+        # c = m / x ** d_x / y ** d_y
+        # print type(m)
+        # print type(sym.poly(m, x, y))
+        # return (sym.poly(m, x, y)).subs(x,FormalVariable([1,0])).subs(\
+        #    y,FormalVariable([0,1]))
+        # return sym.poly(x).subs(x,FormalVariable([1,0])).subs(\
+        #    y,FormalVariable([0,1]))
+        # print "and returning %s "% [c, FormalVariable([d_x, d_y]).__str__()]
+        for i in range(len(coeffs)):
+            ans.append([coeffs[i], FormalVariable(list(degrees[i]))])
+        return ans
+
 
 
 # e1 = MyRing([[1,2]])
@@ -372,22 +407,34 @@ print e5.t_expand(k)
 print "\nThe filtered truncation of e5 up to degree %s:" % k
 print e5.laurent_filtered(k)
 
+print "\nThe 'laurent abelianized' expression of e5 + e5 * e6:"
+f1 = (e5 + e5 * e6).laurentify_p()
+print f1
+print "\nThe 'de-laurentified' expression of e5 + e5 * e6:"
+print XVarRing(de_laurentify_p(f1))
+
 print "\n\nSome special cases:"
 
 print "\nDefining e8 = XVarRing([[1], [-1]]) the sum of additive inverses"
 e8 = XVarRing([[1], [-1]])
 print "after automatic simplification, it has 'elements' %s " % e8.element
 print "e8 = %s" % e8
+print "the laurent-abelianized-then de_laurentified expression: %s " % \
+XVarRing(de_laurentify_p(e8.laurentify_p()))
 
 print "\nDefining e9 = XVarRing([[0]]) the additive identity"
 e9 = XVarRing([[0]])
 print "after automatic simplification, it has 'elements' %s " % e9.element
 print "e9 = %s" % e9
+print "the laurent-abelianized-then de_laurentified expression: %s " % \
+XVarRing(de_laurentify_p(e9.laurentify_p()))
 
 print "\nDefining e10 = XVarRing([[1]]) tha multiplicative identity"
 e10 = XVarRing([[1]])
 print "after automatic simplification, it has 'elements' %s " % e10.element
 print "e10 = %s" % e10
+print "the laurent-abelianized-then de_laurentified expression: %s " % \
+XVarRing(de_laurentify_p(e10.laurentify_p()))
 
 print "\nDefining e11 = XVarRing([[FormalVariable([1, 2]), \
 FormalVariable([-1, -2])]]) \
@@ -395,6 +442,8 @@ the product of multiplicative inverses"
 e11 = XVarRing([[FormalVariable([1, 2]), FormalVariable([-1, -2])]])
 print "after automatic simplification, it has 'elements' %s " % e11.element
 print "e11 = %s" % e11
+print "the laurent-abelianized-then de_laurentified expression: %s " % \
+XVarRing(de_laurentify_p(e11.laurentify_p()))
 
 #-------------------------------#
 #         END EXAMPLE           #
