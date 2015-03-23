@@ -3,6 +3,9 @@ import sympy as sym
 from sympy import poly, series # Using sympy v 0.7.6!
 from sympy.abc import q, x, y, t
 
+# FIND A WAY TO DISPENSE OF THIS GLOBAL VARIABLE EVENTUALLY
+inverse_expansion_degree = 3
+
 def dsz(charge_1, charge_2):
     return (charge_1[0] * charge_2[1] - charge_2[0] * charge_1[1])
 
@@ -57,20 +60,32 @@ class MyRing(object):
                 print "Cannot compute negative power of polynomial \
                 that is not of type XVarRing (i.e. in formal variables)."
             else:
-                c = self.laurent_filtered(1)  # the constant part
+                c = self.laurent_filtered(0)  # the constant part
+                # print "the constant element is: %s" % c
                 if c == 0:
-                    print "The polynomial %s vanishes at Y->0; \
-                    cannot compute the inverse expansion" % self.__str__()
+                    print "The polynomial %s vanishes at Y->0;\
+                    \ncannot compute the inverse expansion" % self.__str__()
                     return None
                 else:
-                    ### If I had a way of de-laurentifying the whole polynomial
-                    ### it would be good to expand the inverse of it, and then
-                    ### use its de-laurentification. For now I will use this 
-                    ### awkward alternative instead. To Fix!
-                    print "\n***********\
-                    \nYou haven't implemented this feature yet!\
-                    \n***********\n"
-                    pass
+                    ### e.g. if self is (3 + x)
+                    norm_self = XVarRing([[ 1/c ]]) * self
+                    # e.g. then norm_self is (1 + x/3)
+                    # print norm_self
+                    perturb_norm_self = norm_self + XVarRing([[-1]])
+                    ### and then perturb_norm_self is + x/3
+                    # print perturb_norm_self
+                    inverse_norm_self = XVarRing([[1]])
+                    for i in range(1, inverse_expansion_degree + 1):
+                        inverse_norm_self = inverse_norm_self +\
+                        XVarRing([[((-1) ** i)]])\
+                        * (perturb_norm_self ** i)
+                    ### then inverse_norm_self is 1 - x/3 + (x/3)^2 - (x/3)^3 
+                    # print inverse_norm_self
+                    inverse_self = XVarRing([[1/c]]) * inverse_norm_self
+                    # print inverse_self
+                    ### and inverse_self is the right answer for the inverse
+                    negative_power_self = inverse_self ** abs(n)
+                    return negative_power_self
 
         else:
             result = self.__class__([[1]])  # Multiplicative identity of ring
@@ -126,12 +141,15 @@ class XVarRing(MyRing):
             string = ""
             for j in range(len(self.element)):
                 el = self.element[j]
-                if el[0] == 1:
-                    coeff = ""
+                if el[0] == 1 and el[1].charge == [0, 0]:
+                    new_piece = "1"
+                elif el[1].charge == [0, 0] and not (el[0] == 1):
+                    new_piece = " (%s) " % el[0]
+                elif (not (el[1].charge == [0, 0])) and (el[0] == 1):
+                    new_piece = el[1].__str__()
                 else:
-                    coeff = " (%s) " % el[0]
-                var = el[1].__str__()
-                string = string + coeff + var 
+                    new_piece = (" (%s) " % el[0]) + el[1].__str__()
+                string = string + new_piece
                 if j < len(self.element) - 1: 
                     string = string + " + "
             return string
@@ -194,6 +212,9 @@ class XVarRing(MyRing):
 
     def laurent_filtered(self, degree):
         return self.t_expand(degree).subs(t, 1)
+
+    def filtered(self, degree):
+        return XVarRing(de_laurentify_p(self.laurent_filtered(degree)))
 
 
 
@@ -264,7 +285,7 @@ def twisted_product(l):
     [3, X_[a,b], X_[a',b'], 5]  
                     =>    15 * q^(<(a,b), (a',b')>) * x^(a+a') * y^(b+b')
     Note that the result is an expression in the abelina variables.
-    Thhere are other functions that will turn this back into formal variables,
+    There are other functions that will turn this back into formal variables,
     namely de_laurentify_m().
     """
     if len(l) == 0:
@@ -402,61 +423,74 @@ print "e5 + e6 = %s" % (e5 + e6)
 print "\nlet's take the square power of e5"
 print "e5^2 = %s" % e5 ** 2
 
-print "\nThe 'laurent abelianized' expression of e5:"
-print e5.laurentify_p()
+print "\nlet's take the inverse square power of e5"
+print "e5^{-2} = %s" % e5 ** (-2)
 
-k = 1
-print "\nThe 'laurent abelianized' t-expanded expression of e5 up to \
-degree t^%s: " % k
-print e5.t_expand(k)
+print "\nlet's try with the inverse square power of e7"
+# e7 = XVarRing([[1], [2, q, x1], [3, 1 / q**2, x2, x1]])
+e7 = XVarRing([[1], [x1], [x2]])
+# e7 = XVarRing([[1], [q, x1]])
+# e7 = XVarRing([[3], [x1]])
+print "e7 = %s" % e7 
+print "e7^{-2} = %s" % e7 ** (-2)
+print "\na 'filtered' presentation of this expression"
+print "e7^{-2} = %s" % (e7 ** (-2)).filtered(inverse_expansion_degree)
 
-print "\nThe filtered truncation of e5 up to degree %s:" % k
-print e5.laurent_filtered(k)
+# print "\nThe 'laurent abelianized' expression of e5:"
+# print e5.laurentify_p()
 
-print "\nThe 'laurent abelianized' expression of e5 + e5 * e6:"
-f1 = (e5 + e5 * e6).laurentify_p()
-print f1
-print "\nThe 'de-laurentified' expression of e5 + e5 * e6:"
-print XVarRing(de_laurentify_p(f1))
+# k = 1
+# print "\nThe 'laurent abelianized' t-expanded expression of e5 up to \
+# degree t^%s: " % k
+# print e5.t_expand(k)
 
-print "\n\nSome special cases:"
+# print "\nThe filtered truncation of e5 up to degree %s:" % k
+# print e5.laurent_filtered(k)
 
-print "\nDefining \
-\ne8 = XVarRing([[1], [-1]])\
-\nthe sum of additive inverses"
-e8 = XVarRing([[1], [-1]])
-print "after automatic simplification, it has 'elements' %s " % e8.element
-print "e8 = %s" % e8
-print "the laurent-abelianized-then de_laurentified expression: %s " % \
-XVarRing(de_laurentify_p(e8.laurentify_p()))
+# print "\nThe 'laurent abelianized' expression of e5 + e5 * e6:"
+# f1 = (e5 + e5 * e6).laurentify_p()
+# print f1
+# print "\nThe 'de-laurentified' expression of e5 + e5 * e6:"
+# print XVarRing(de_laurentify_p(f1))
 
-print "\nDefining\
-\ne9 = XVarRing([[0]])\
-\nthe additive identity"
-e9 = XVarRing([[0]])
-print "after automatic simplification, it has 'elements' %s " % e9.element
-print "e9 = %s" % e9
-print "the laurent-abelianized-then de_laurentified expression: %s " % \
-XVarRing(de_laurentify_p(e9.laurentify_p()))
+# print "\n\nSome special cases:"
 
-print "\nDefining\
-\ne10 = XVarRing([[1]])\
-\ntha multiplicative identity"
-e10 = XVarRing([[1]])
-print "after automatic simplification, it has 'elements' %s " % e10.element
-print "e10 = %s" % e10
-print "the laurent-abelianized-then de_laurentified expression: %s " % \
-XVarRing(de_laurentify_p(e10.laurentify_p()))
+# print "\nDefining \
+# \ne8 = XVarRing([[1], [-1]])\
+# \nthe sum of additive inverses"
+# e8 = XVarRing([[1], [-1]])
+# print "after automatic simplification, it has 'elements' %s " % e8.element
+# print "e8 = %s" % e8
+# print "the laurent-abelianized-then de_laurentified expression: %s " % \
+# XVarRing(de_laurentify_p(e8.laurentify_p()))
 
-print "\nDefining \
-\ne11 = XVarRing([[FormalVariable([1, 2]), \
-FormalVariable([-1, -2])]])\
-\nthe product of multiplicative inverses"
-e11 = XVarRing([[FormalVariable([1, 2]), FormalVariable([-1, -2])]])
-print "after automatic simplification, it has 'elements' %s " % e11.element
-print "e11 = %s" % e11
-print "the laurent-abelianized-then de_laurentified expression: %s " % \
-XVarRing(de_laurentify_p(e11.laurentify_p()))
+# print "\nDefining\
+# \ne9 = XVarRing([[0]])\
+# \nthe additive identity"
+# e9 = XVarRing([[0]])
+# print "after automatic simplification, it has 'elements' %s " % e9.element
+# print "e9 = %s" % e9
+# print "the laurent-abelianized-then de_laurentified expression: %s " % \
+# XVarRing(de_laurentify_p(e9.laurentify_p()))
+
+# print "\nDefining\
+# \ne10 = XVarRing([[1]])\
+# \ntha multiplicative identity"
+# e10 = XVarRing([[1]])
+# print "after automatic simplification, it has 'elements' %s " % e10.element
+# print "e10 = %s" % e10
+# print "the laurent-abelianized-then de_laurentified expression: %s " % \
+# XVarRing(de_laurentify_p(e10.laurentify_p()))
+
+# print "\nDefining \
+# \ne11 = XVarRing([[FormalVariable([1, 2]), \
+# FormalVariable([-1, -2])]])\
+# \nthe product of multiplicative inverses"
+# e11 = XVarRing([[FormalVariable([1, 2]), FormalVariable([-1, -2])]])
+# print "after automatic simplification, it has 'elements' %s " % e11.element
+# print "e11 = %s" % e11
+# print "the laurent-abelianized-then de_laurentified expression: %s " % \
+# XVarRing(de_laurentify_p(e11.laurentify_p()))
 
 #-------------------------------#
 #         END EXAMPLE           #
